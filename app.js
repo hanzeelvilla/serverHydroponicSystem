@@ -5,7 +5,8 @@ import { createServer } from 'node:http';
 import mqtt from 'mqtt';
 
 const broker = 'mqtt://test.mosquitto.org';
-const topic = '/hanzeelVilla';
+const topicRX = '/RXhanzeelVilla';
+const topicTX = '/TXhanzeelVilla';
 
 const app = express();
 const server = createServer(app);
@@ -16,24 +17,52 @@ const mqttClient = mqtt.connect(broker);
 /* ----------------------------- MQTT CONNECTION ---------------------------- */
 mqttClient.on('connect', () => {
     console.log('Connected to MQTT broker');
-    mqttClient.subscribe(topic, (err) => {
+
+    mqttClient.subscribe(topicRX, (err) => {
         if (err)
-            console.log('Error subscribing to topic');
+            console.log(`Error subscribing to topic ${topicRX}`);
         else
-            console.log('Subscribed to topic');
+            console.log(`Subscribed to topic ${topicRX}`);
+    });
+
+    mqttClient.subscribe(topicTX, (err) => {
+        if (err)
+            console.log(`Error subscribing to topic ${topicTX}`);
+        else
+            console.log(`Subscribed to topic ${topicTX}`);
     });
 });
 
 /* ------------------------- MQTT RECEIVE A MESSAGE ------------------------- */
 mqttClient.on('message', (topic, message) => {
-    console.log(`Received message on ${topic}: ${message.toString()}`);
-    io.emit('message', message.toString());
+    const jsonMessage = JSON.parse(message);
+    console.log(`Received message on ${topic}: ${JSON.stringify(jsonMessage)}`);
+
+    if (topic === topicRX)
+        io.emit('message', jsonMessage);
 });
 
 /* -------------------------- WEB SOCKET CONNECTION ------------------------- */
-io.on('connection', () => {
-    console.log('new user connected');
+io.on('connection', (socket) => {
+    console.log('New user connected');
+
+    socket.on('waterPump', (status) => {
+        const jsonMessage = JSON.stringify({ waterPump: status });
+        console.log(`Sending message to topic ${topicTX}`);
+        mqttClient.publish(topicTX, jsonMessage);
+    });
+
+    socket.on('airPump', (status) => {
+        const jsonMessage = JSON.stringify({ airPump: status });
+        console.log(`Sending message to topic ${topicTX}`);
+        mqttClient.publish(topicTX, jsonMessage);
+    });
+
+    socket.on('disconnect', () => {
+        console.log('A user has disconnected');
+    });
 });
+
 
 /* --------------------------------- EXPRESS -------------------------------- */
 app.get('/', (req, res) => {
