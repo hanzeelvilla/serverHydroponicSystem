@@ -5,8 +5,13 @@ import { createServer } from 'node:http';
 import mqtt from 'mqtt';
 
 const broker = 'mqtt://test.mosquitto.org';
-const topicRX = '/RXhanzeelVilla';
 const topicTX = '/TXhanzeelVilla';
+const topicRX = '/RXhanzeelVilla';
+
+let switchStatus = {
+    waterPump: false,
+    airPump: false
+}
 
 const app = express();
 const server = createServer(app);
@@ -17,13 +22,6 @@ const mqttClient = mqtt.connect(broker);
 /* ----------------------------- MQTT CONNECTION ---------------------------- */
 mqttClient.on('connect', () => {
     console.log('Connected to MQTT broker');
-
-    mqttClient.subscribe(topicRX, (err) => {
-        if (err)
-            console.log(`Error subscribing to topic ${topicRX}`);
-        else
-            console.log(`Subscribed to topic ${topicRX}`);
-    });
 
     mqttClient.subscribe(topicTX, (err) => {
         if (err)
@@ -38,24 +36,35 @@ mqttClient.on('message', (topic, message) => {
     const jsonMessage = JSON.parse(message);
     console.log(`Received message on ${topic}: ${JSON.stringify(jsonMessage)}`);
 
-    if (topic === topicRX)
-        io.emit('message', jsonMessage);
+    io.emit('message', jsonMessage);
 });
 
 /* -------------------------- WEB SOCKET CONNECTION ------------------------- */
 io.on('connection', (socket) => {
     console.log('New user connected');
+    // change to actual status of the switch when a new user connects
+    socket.emit('message', JSON.stringify(switchStatus));
 
+    // turn on/off water pump
     socket.on('waterPump', (status) => {
-        const jsonMessage = JSON.stringify({ waterPump: status });
-        console.log(`Sending message to topic ${topicTX}`);
-        mqttClient.publish(topicTX, jsonMessage);
+        switchStatus.waterPump = status;
+        const jsonMessage = JSON.stringify(switchStatus);
+
+        console.log(`Sending message to topic ${topicRX}`);
+        mqttClient.publish(topicRX, jsonMessage); // sending data to esp32
+
+        io.emit('message', jsonMessage);
     });
 
+    // turn on/ff air pump
     socket.on('airPump', (status) => {
-        const jsonMessage = JSON.stringify({ airPump: status });
-        console.log(`Sending message to topic ${topicTX}`);
-        mqttClient.publish(topicTX, jsonMessage);
+        switchStatus.airPump = status;
+        const jsonMessage = JSON.stringify(switchStatus);
+
+        console.log(`Sending message to topic ${topicRX}`);
+        mqttClient.publish(topicRX, jsonMessage); // sending data to esp32
+
+        io.emit('message', jsonMessage);
     });
 
     socket.on('disconnect', () => {

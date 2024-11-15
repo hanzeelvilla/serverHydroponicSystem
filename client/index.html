@@ -95,34 +95,39 @@
             console.log('Connected to server');
         })
 
-        // receive message from server
+        // new data from esp32
         socket.on('message', (message) => {
-            console.log(message);
-            switchWaterPump.checked = message.waterPump;
-            switchAirPump.checked = message.airPump;
+            jsonMessage = JSON.parse(message);
+            console.log(jsonMessage);
+
+            // only recieves the data that changed
+            if (jsonMessage.waterPump !== undefined) {
+                switchWaterPump.checked = jsonMessage.waterPump;
+            }
+
+            if (jsonMessage.airPump !== undefined) {
+                switchAirPump.checked = jsonMessage.airPump;
+            }
         })
 
         socket.on('disconnect', () => {
             console.log('Disconnected from server');
         })
 
+        // you don't need to send all the data, just the one that you want to update
         switchWaterPump.addEventListener('change', () => {
             if (switchWaterPump.checked) {
-                console.log('Water pump ON');
-                socket.emit('waterPump', true);
+                socket.emit('waterPump', true); // on
             } else {
-                console.log('Water pump OFF');
-                socket.emit('waterPump', false);
+                socket.emit('waterPump', false); // off
             }
         })
 
         switchAirPump.addEventListener('change', () => {
             if (switchAirPump.checked) {
-                console.log('Air pump ON');
-                socket.emit('airPump', true);
+                socket.emit('airPump', true); // on
             } else {
-                console.log('Air pump OFF');
-                socket.emit('airPump', false);
+                socket.emit('airPump', false); // off
             }
         })
     </script>
