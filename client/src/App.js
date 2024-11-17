@@ -64,11 +64,10 @@ const updateBombaState = (index, newState) => {
   if (socket) {
     const bombaName = infoBombas[index].nombre;
     if (bombaName === "Bomba de agua") {
-      console.log(infoBombas)
-      socket.emit('waterPump', newState);
+      socket.emit('pumpState', { pump: 'waterPump', status: newState });
     }
     if (bombaName === "Bomba de aire") {
-      socket.emit('airPump', newState);
+      socket.emit('pumpState', { pump: 'airPump', status: newState });
     }
   }
 };

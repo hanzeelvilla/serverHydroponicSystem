@@ -10,6 +10,7 @@ const topicTX = '/TXhydroponicProjectName';
 const topicRX = '/RXhydroponicProjectName';
 
 let switchStatus = {
+    type: "bomba",
     waterPump: false,
     airPump: false
 }
@@ -62,22 +63,21 @@ io.on('connection', (socket) => {
     socket.emit('message', switchStatus);
 
     socket.on('pumpState', ({ pump, status }) => {
-        //console.log(pump, status);
-
-        if (pump == 'waterPump') {
+        if (pump === 'waterPump') {
             switchStatus.waterPump = status;
-        }
-        if (pump == 'airPump') {
+        } else if (pump === 'airPump') {
             switchStatus.airPump = status;
         }
 
         const jsonMessage = JSON.stringify(switchStatus);
 
-        console.log(`Sending message to topic ${topicRX}`);
-        mqttClient.publish(topicRX, jsonMessage); // sending data to esp32
+        console.log(`Enviando mensaje al topic ${topicTX}: ${jsonMessage}`);
+        mqttClient.publish(topicTX, jsonMessage); // Enviar datos al ESP32
 
-        io.emit('message', switchStatus); // change state to all users
+        // Emitir el estado actualizado a todos los clientes
+        io.emit('message', switchStatus);
     });
+
 
     socket.on('disconnect', () => {
         console.log('A user has disconnected');
