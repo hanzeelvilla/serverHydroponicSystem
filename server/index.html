@@ -97,17 +97,15 @@
 
         // new data from esp32
         socket.on('message', (message) => {
-            jsonMessage = JSON.parse(message);
-            console.log(jsonMessage);
+            console.log(message);
+            console.log(typeof message);
 
             // only recieves the data that changed
-            if (jsonMessage.waterPump !== undefined) {
-                switchWaterPump.checked = jsonMessage.waterPump;
-            }
+            if (message.waterPump != undefined)
+                switchWaterPump.checked = message.waterPump;
 
-            if (jsonMessage.airPump !== undefined) {
-                switchAirPump.checked = jsonMessage.airPump;
-            }
+            if (message.airPump != undefined)
+                switchAirPump.checked = message.airPump;
         })
 
         socket.on('disconnect', () => {
@@ -116,19 +114,12 @@
 
         // you don't need to send all the data, just the one that you want to update
         switchWaterPump.addEventListener('change', () => {
-            if (switchWaterPump.checked) {
-                socket.emit('waterPump', true); // on
-            } else {
-                socket.emit('waterPump', false); // off
-            }
+            socket.emit('pumpState', { pump:"waterPump", status: switchWaterPump.checked}); // on
+            
         })
 
         switchAirPump.addEventListener('change', () => {
-            if (switchAirPump.checked) {
-                socket.emit('airPump', true); // on
-            } else {
-                socket.emit('airPump', false); // off
-            }
+            socket.emit('pumpState',{ pump: 'airPump', status: switchAirPump.checked }); // off
         })
     </script>
 </body>

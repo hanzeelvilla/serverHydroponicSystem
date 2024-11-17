@@ -1,0 +1,19 @@
+header {
+    width: 100%;
+    padding: 30px;
+    background-color: #169d53;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-sizing: border-box;
+}
+
+header img {
+    max-width: 150px;
+    height: auto;
+}
+
+header p {
+    font-size: 40px;
+    font-weight: 400;
+}
