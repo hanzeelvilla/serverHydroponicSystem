@@ -6,21 +6,21 @@ import mqtt from 'mqtt';
 import cors from 'cors';
 
 const broker = 'mqtt://test.mosquitto.org';
-const topicBombas = '/dataBombas';
-const topicRX = '/RXhanzeelVilla';
+const topicTX = '/TXhydroponicProjectName';
+const topicRX = '/RXhydroponicProjectName';
 
 let switchStatus = {
-    type: 'bomba',
     waterPump: false,
     airPump: false
 }
 
 const app = express();
 const server = createServer(app);
+
 const io = new Server(server, {
     cors: {
         origin: 'http://localhost:3001',
-        methods: ['GET', 'POST']
+        methods: ['GET']
     }
 });
 
@@ -32,48 +32,51 @@ const mqttClient = mqtt.connect(broker);
 mqttClient.on('connect', () => {
     console.log('Connected to MQTT broker');
 
-    mqttClient.subscribe(topicBombas, (err) => {
+    mqttClient.subscribe(topicTX, (err) => {
         if (err)
-            console.log(`Error subscribing to topic ${topicBombas}`);
+            console.log(`Error subscribing to topic ${topicTX}`);
         else
-            console.log(`Subscribed to topic ${topicBombas}`);
+            console.log(`Subscribed to topic ${topicTX}`);
     });
 });
 
 /* ------------------------- MQTT RECEIVE A MESSAGE ------------------------- */
 mqttClient.on('message', (topic, message) => {
     const jsonMessage = JSON.parse(message);
+
+    if (jsonMessage.waterPump != undefined)
+        switchStatus.waterPump = jsonMessage.waterPump
+
+    if (jsonMessage.airPump != undefined)
+        switchStatus.airPump = jsonMessage.airPump
+
     console.log(`Received message on ${topic}: ${JSON.stringify(jsonMessage)}`);
 
-    io.emit('message', jsonMessage);
+    io.emit('message', JSON.parse(message));
 });
 
 /* -------------------------- WEB SOCKET CONNECTION ------------------------- */
 io.on('connection', (socket) => {
     console.log('New user connected');
     // change to actual status of the switch when a new user connects
-    socket.emit('message', JSON.stringify(switchStatus));
+    socket.emit('message', switchStatus);
 
-    // turn on/off water pump
-    socket.on('waterPump', (status) => {
-        switchStatus.waterPump = status;
+    socket.on('pumpState', ({ pump, status }) => {
+        //console.log(pump, status);
+
+        if (pump == 'waterPump') {
+            switchStatus.waterPump = status;
+        }
+        if (pump == 'airPump') {
+            switchStatus.airPump = status;
+        }
+
         const jsonMessage = JSON.stringify(switchStatus);
 
-        console.log(`Sending message to topic ${topicBombas}`);
-        mqttClient.publish(topicBombas, jsonMessage); // sending data to esp32
+        console.log(`Sending message to topic ${topicRX}`);
+        mqttClient.publish(topicRX, jsonMessage); // sending data to esp32
 
-        io.emit('message', jsonMessage);
-    });
-
-    // turn on/ff air pump
-    socket.on('airPump', (status) => {
-        switchStatus.airPump = status;
-        const jsonMessage = JSON.stringify(switchStatus);
-
-        console.log(`Sending message to topic ${topicBombas}`);
-        mqttClient.publish(topicBombas, jsonMessage); // sending data to esp32
-
-        io.emit('message', jsonMessage);
+        io.emit('message', switchStatus); // change state to all users
     });
 
     socket.on('disconnect', () => {
@@ -81,10 +84,9 @@ io.on('connection', (socket) => {
     });
 });
 
-
 /* --------------------------------- EXPRESS -------------------------------- */
 app.get('/', (req, res) => {
-    const filePath = path.join('client', 'index.html')
+    const filePath = 'index.html';
     //console.log(filePath);
     res.sendFile(process.cwd() + '/' + filePath); // verrify this line on windows
     // process.cwd() + '/client/index.html'
