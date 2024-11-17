@@ -3,19 +3,28 @@ import path from 'node:path';
 import { Server } from 'socket.io';
 import { createServer } from 'node:http';
 import mqtt from 'mqtt';
+import cors from 'cors';
 
 const broker = 'mqtt://test.mosquitto.org';
-const topicTX = '/TXhanzeelVilla';
+const topicBombas = '/dataBombas';
 const topicRX = '/RXhanzeelVilla';
 
 let switchStatus = {
+    type: 'bomba',
     waterPump: false,
     airPump: false
 }
 
 const app = express();
 const server = createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+    cors: {
+        origin: 'http://localhost:3001',
+        methods: ['GET', 'POST']
+    }
+});
+
+app.use(cors());
 
 const mqttClient = mqtt.connect(broker);
 
@@ -23,11 +32,11 @@ const mqttClient = mqtt.connect(broker);
 mqttClient.on('connect', () => {
     console.log('Connected to MQTT broker');
 
-    mqttClient.subscribe(topicTX, (err) => {
+    mqttClient.subscribe(topicBombas, (err) => {
         if (err)
-            console.log(`Error subscribing to topic ${topicTX}`);
+            console.log(`Error subscribing to topic ${topicBombas}`);
         else
-            console.log(`Subscribed to topic ${topicTX}`);
+            console.log(`Subscribed to topic ${topicBombas}`);
     });
 });
 
@@ -50,8 +59,8 @@ io.on('connection', (socket) => {
         switchStatus.waterPump = status;
         const jsonMessage = JSON.stringify(switchStatus);
 
-        console.log(`Sending message to topic ${topicRX}`);
-        mqttClient.publish(topicRX, jsonMessage); // sending data to esp32
+        console.log(`Sending message to topic ${topicBombas}`);
+        mqttClient.publish(topicBombas, jsonMessage); // sending data to esp32
 
         io.emit('message', jsonMessage);
     });
@@ -61,8 +70,8 @@ io.on('connection', (socket) => {
         switchStatus.airPump = status;
         const jsonMessage = JSON.stringify(switchStatus);
 
-        console.log(`Sending message to topic ${topicRX}`);
-        mqttClient.publish(topicRX, jsonMessage); // sending data to esp32
+        console.log(`Sending message to topic ${topicBombas}`);
+        mqttClient.publish(topicBombas, jsonMessage); // sending data to esp32
 
         io.emit('message', jsonMessage);
     });
