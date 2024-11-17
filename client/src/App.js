@@ -8,9 +8,9 @@ import { io } from 'socket.io-client';
 
 function App() {
   const [infoSensores, setInfoSensores] = useState([
-    { nombre: 'TDS (Total Disolved Solids)', url: 'https://cdn-icons-png.flaticon.com/512/7225/7225279.png', data: '0' },
-    { nombre: 'PH', url: 'https://cdn-icons-png.flaticon.com/512/310/310073.png', data: '0' },
-    { nombre: 'Temperatura', url: 'https://cdn-icons-png.flaticon.com/512/11106/11106505.png', data: '0' },
+    { nombre: 'TDS (Total Disolved Solids)', url: 'https://cdn-icons-png.flaticon.com/512/7225/7225279.png', data: 0 },
+    { nombre: 'PH', url: 'https://cdn-icons-png.flaticon.com/512/310/310073.png', data: 0 },
+    { nombre: 'Temperatura', url: 'https://cdn-icons-png.flaticon.com/512/11106/11106505.png', data: 0 },
   ]);
 
   const [infoBombas, setInfoBombas] = useState([
@@ -29,20 +29,45 @@ function App() {
       try {
         const parsedData = typeof data === 'string' ? JSON.parse(data) : data;
 
-        if (parsedData.type === 'sensor') {
-          setInfoSensores((prevState) =>
-            prevState.map((sensor) =>
-              sensor.nombre === parsedData.nombre
-                ? { ...sensor, data: parsedData.data }
-                : sensor
-            )
-          );
-        } else if (parsedData.type === 'bomba') {
-          setInfoBombas((prevState) => [
-            { ...prevState[0], state: parsedData.waterPump },
-            { ...prevState[1], state: parsedData.airPump },
-          ]);
+        if (parsedData.waterPump !== undefined) {
+          setInfoBombas((prevState) => 
+            prevState.map((bomba) => bomba.nombre === "Bomba de agua" ? {...bomba, state: parsedData.waterPump} : bomba)
+          )
         }
+
+        if (parsedData.airPump !== undefined) {
+          setInfoBombas((prevState) => 
+            prevState.map((bomba) => bomba.nombre === "Bomba de aire" ? {...bomba, state: parsedData.airPump} : bomba)
+          )
+        }
+
+        if (parsedData.tds !== undefined) {
+          setInfoSensores((prevState) => 
+            prevState.map((sensor) => sensor.nombre === "TDS (Total Disolved Solids)" ? {...sensor, data: parsedData.tds} : sensor)
+          )
+        }
+
+        if (parsedData.temp !== undefined) {
+          setInfoSensores((prevState) => 
+            prevState.map((sensor) => sensor.nombre === "Temperatura" ? {...sensor, data: parsedData.temp} : sensor)
+          )
+        }
+
+        if (parsedData.ph !== undefined) {
+          setInfoSensores((prevState) => 
+            prevState.map((sensor) => sensor.nombre === "PH" ? {...sensor, data: parsedData.ph} : sensor)
+          )
+        }
+
+        // if (parsedData.type === 'sensor') {
+        //   setInfoSensores((prevState) =>
+        //     prevState.map((sensor) =>
+        //       sensor.nombre === parsedData.nombre
+        //         ? { ...sensor, data: parsedData.data }
+        //         : sensor
+        //     )
+        //   );
+        // }
       } catch (error) {
         console.error('Error al procesar el mensaje:', error);
       }
