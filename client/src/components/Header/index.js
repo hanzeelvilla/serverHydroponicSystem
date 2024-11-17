@@ -1,12 +1,12 @@
 import './Header.css'
-import logo from '../../logo.svg';
+import logo from '../../logo.png';
 
 
 const Header = () => {
     return (
         <header>
             <img src={logo} alt='logo'></img>
-            <p>Cultivo hidropónico</p>
+            <p>Hydro Masters</p>
         </header>
     )
 }
