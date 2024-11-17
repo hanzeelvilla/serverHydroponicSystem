@@ -6,8 +6,8 @@ import mqtt from 'mqtt';
 import cors from 'cors';
 
 const broker = 'mqtt://test.mosquitto.org';
-const topicTX = '/TXhydroponicProjectName';
-const topicRX = '/RXhydroponicProjectName';
+const topicTX = '/TXHydroMasters';
+const topicRX = '/RXHydroMasters';
 
 let switchStatus = {
     waterPump: false,
@@ -70,8 +70,8 @@ io.on('connection', (socket) => {
 
         const jsonMessage = JSON.stringify(switchStatus);
 
-        console.log(`Enviando mensaje al topic ${topicTX}: ${jsonMessage}`);
-        mqttClient.publish(topicTX, jsonMessage); // Enviar datos al ESP32
+        console.log(`Enviando mensaje al topic ${topicRX}: ${jsonMessage}`);
+        mqttClient.publish(topicRX, jsonMessage); // Enviar datos al ESP32
 
         // Emitir el estado actualizado a todos los clientes
         io.emit('message', switchStatus);
