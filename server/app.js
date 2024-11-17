@@ -10,7 +10,6 @@ const topicTX = '/TXhydroponicProjectName';
 const topicRX = '/RXhydroponicProjectName';
 
 let switchStatus = {
-    type: "bomba",
     waterPump: false,
     airPump: false
 }
