@@ -1,17 +1,21 @@
 import express from 'express';
-import path from 'node:path';
 import { Server } from 'socket.io';
 import { createServer } from 'node:http';
 import mqtt from 'mqtt';
 import cors from 'cors';
+import mongoose from 'mongoose';
 
 const broker = 'mqtt://test.mosquitto.org';
 const topicTX = '/TXHydroMasters';
 const topicRX = '/RXHydroMasters';
+const cooldown = 50000;
 
-let switchStatus = {
+let latestSensorData = {
     waterPump: false,
-    airPump: false
+    airPump: false,
+    tds: 0,
+    temp: 0,
+    ph: 0
 }
 
 const app = express();
@@ -26,9 +30,30 @@ const io = new Server(server, {
 
 app.use(cors());
 
-const mqttClient = mqtt.connect(broker);
+/* --------------------------- MONGODB CONNECTION --------------------------- */
+mongoose.connect('mongodb://localhost:27017/hydroMasters')
+.then(() => {
+    console.log('Connected to MongoDB');
+})
+.catch((err) => {
+    console.log(`Error connecting to MongoDB: ${err}`);
+});
+
+const sensorSchema = new mongoose.Schema({
+    date: String,
+    time: String,
+    temp: Number,
+    tds: Number,
+    ph: Number,
+    airPump: Boolean,
+    waterPump: Boolean
+});
+
+const Sensor = mongoose.model('Sensor', sensorSchema);
 
 /* ----------------------------- MQTT CONNECTION ---------------------------- */
+const mqttClient = mqtt.connect(broker);
+
 mqttClient.on('connect', () => {
     console.log('Connected to MQTT broker');
 
@@ -41,16 +66,58 @@ mqttClient.on('connect', () => {
 });
 
 /* ------------------------- MQTT RECEIVE A MESSAGE ------------------------- */
-mqttClient.on('message', (topic, message) => {
-    const jsonMessage = JSON.parse(message);
+let lastSaveTime = 0;
+
+mqttClient.on('message', async (topic, message) => {
+    let jsonMessage;
+
+    try {
+        jsonMessage = JSON.parse(message);
+    }
+    catch (error) {
+        console.log(`Error parsing JSON message: ${error}`);
+        return;
+    }
 
     if (jsonMessage.waterPump != undefined)
-        switchStatus.waterPump = jsonMessage.waterPump
+        latestSensorData.waterPump = jsonMessage.waterPump
 
     if (jsonMessage.airPump != undefined)
-        switchStatus.airPump = jsonMessage.airPump
+        latestSensorData.airPump = jsonMessage.airPump
+
+    if (jsonMessage.tds != undefined)
+        latestSensorData.tds = jsonMessage.tds
+
+    if (jsonMessage.temp != undefined)
+        latestSensorData.temp = jsonMessage.temp
+
+    if (jsonMessage.ph != undefined)
+        latestSensorData.ph = jsonMessage.ph
 
     console.log(`Received message on ${topic}: ${JSON.stringify(jsonMessage)}`);
+
+    const currentTime = Date.now();
+    if (currentTime - lastSaveTime >= cooldown) {
+        try {
+            const newSensorData = await Sensor.create({
+                date: jsonMessage.date,
+                time: jsonMessage.time,
+                temp: jsonMessage.temp,
+                tds: jsonMessage.tds,
+                ph: jsonMessage.ph,
+                airPump: jsonMessage.airPump,
+                waterPump: jsonMessage.waterPump
+            });
+            console.log(`Sensor data saved to MongoDB: ${newSensorData}`);
+            lastSaveTime = currentTime;
+        }
+        catch (error) {
+            console.log(`Error saving sensor data to MongoDB: ${error}`);
+        }
+    }
+    else {
+        console.log(`Cooldown time not reached, skipping save to MongoDB`);
+    }
 
     io.emit('message', JSON.parse(message));
 });
@@ -59,22 +126,22 @@ mqttClient.on('message', (topic, message) => {
 io.on('connection', (socket) => {
     console.log('New user connected');
     // change to actual status of the switch when a new user connects
-    socket.emit('message', switchStatus);
+    socket.emit('message', latestSensorData);
 
     socket.on('pumpState', ({ pump, status }) => {
         if (pump === 'waterPump') {
-            switchStatus.waterPump = status;
+            latestSensorData.waterPump = status;
         } else if (pump === 'airPump') {
-            switchStatus.airPump = status;
+            latestSensorData.airPump = status;
         }
 
-        const jsonMessage = JSON.stringify(switchStatus);
+        const jsonMessage = JSON.stringify(latestSensorData);
 
         console.log(`Enviando mensaje al topic ${topicRX}: ${jsonMessage}`);
         mqttClient.publish(topicRX, jsonMessage); // Enviar datos al ESP32
 
         // Emitir el estado actualizado a todos los clientes
-        io.emit('message', switchStatus);
+        io.emit('message', latestSensorData);
     });
 
 
