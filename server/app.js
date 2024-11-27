@@ -158,6 +158,16 @@ app.get('/', (req, res) => {
     // process.cwd() + '/client/index.html'
 });
 
+app.get('/api/sensorData', async (req, res) => {
+    try {
+        const sensorData = await Sensor.find();
+        res.json(sensorData);
+    }
+    catch (error) {
+        res.status(500).json({ error: error });
+    }
+});
+
 const port = process.env.PORT || 3000;
 
 server.listen(port, () => {
