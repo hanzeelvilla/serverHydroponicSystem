@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import './App.css';
-import Header from './components/Header';
-import Title from './components/Title';
-import CardSensor from './components/CardSensor';
-import CardBomba from './components/CardBomba';
+import Inicio from './components/Inicio';
+import Historial from './components/Historial';
+import { Routes, Route } from 'react-router-dom';
 import { io } from 'socket.io-client';
 
 function App() {
+  console.log("Renderizando")
+
   const [infoSensores, setInfoSensores] = useState([
     { nombre: 'TDS (Total Disolved Solids)', url: 'https://cdn-icons-png.flaticon.com/512/7225/7225279.png', data: 0 },
     { nombre: 'PH', url: 'https://cdn-icons-png.flaticon.com/512/310/310073.png', data: 0 },
@@ -18,6 +19,30 @@ function App() {
     { nombre: 'Bomba de aire', url: 'https://cdn-icons-png.flaticon.com/512/6615/6615696.png', state: false },
   ]);
 
+  const [historial, setHistorial] = useState([]);
+
+  useEffect(() => {
+    const apiRoute = "http://localhost:3000/api/sensorData";
+
+    fetch(apiRoute)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`Error: ${response.status}`);
+        }
+        return response.json(); // Corrección: se agregó paréntesis
+      })
+      .then(data => {
+        if (Array.isArray(data)) {
+          setHistorial(data);
+        } else {
+          console.error('La API devolvió un formato inesperado:', data);
+        }
+      })
+      .catch(err => {
+        console.error('Error al obtener los datos de la API:', err);
+      });
+  }, []);
+
   const [socket, setSocket] = useState(null);
 
   useEffect(() => {
@@ -25,7 +50,6 @@ function App() {
     setSocket(newSocket);
 
     newSocket.on('message', (data) => {
-      console.log(data)
       try {
         const parsedData = typeof data === 'string' ? JSON.parse(data) : data;
 
@@ -99,31 +123,11 @@ const updateBombaState = (index, newState) => {
 
   return (
     <>
-      <Header />
-      <div className="main">
-        <Title>Sensores</Title>
-        <div className="div-sensores">
-          {infoSensores.map((sensor) => (
-            <CardSensor key={sensor.nombre} url={sensor.url} data={sensor.data}>
-              {sensor.nombre}
-            </CardSensor>
-          ))}
-        </div>
-        <Title>Bombas</Title>
-        <div className="div-bombas">
-          {infoBombas.map((bomba, index) => (
-            <CardBomba
-              key={bomba.nombre}
-              url={bomba.url}
-              state={bomba.state}
-              onStateChange={(newState) => updateBombaState(index, newState)}
-            >
-              {bomba.nombre}
-            </CardBomba>
-          ))}
-        </div>
-      </div>
-    </>
+      <Routes>
+        <Route path='/' element={<Inicio infoBombas={infoBombas} infoSensores={infoSensores} updateBombaState={updateBombaState} />} />
+        <Route path='historial' element={<Historial dataHistorial={ historial } /> } />
+      </Routes>
+    </> 
   );
 }
 
